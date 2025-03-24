@@ -1,212 +1,227 @@
-
-GRID_DIMENSIONS_MM = [42, 42];
-LIP_OFFSET = 3;
-THICKNESS = 2;
-RADIUS = 1;
+/////////////////////////////////////////////// 
+/////// Edit the following settings /////////// 
+/////////////////////////////////////////////// 
  
 // How many grid spaces does the bin take up
-gridx = 3;
-gridy = 3;
+gridx = 2; // Grid Cols
+gridy = 2; // Grid Rows
 
-cols = 2;
-rows = 3;
+// How many divisions in each direction
+divx = 2; // Cols
+divy = 3; // Rows
+
+/////////////////////////////////////////////// 
+///////////   Global Settings   /////////////// 
+/////// Should not need to changed  /////////// 
+/////////////////////////////////////////////// 
+$fn=50;          // Generates smoother rounded edges
+GRID_DIMENSIONS_MM = [42, 42];
+LIP_OFFSET = 3;  // Offest from side of bin so spacer lays on ledge
+THICKNESS = 2;   // Wall thickness
+RADIUS = 1;      // Radius
+TOLERANCE = .5;  // Tolerance for bins
+HEIGHT = 6.9;    // Total height with dividers
+
+/////////////////////////////////////////////// 
+/////// Shouldn't need to edit below ////////// 
+/////////////////////////////////////////////// 
+/////////////////////////////////////////////// 
+/////////////////////////////////////////////// 
 
 
-/*
-    Do not edit any setting below this line.
-    Edit the sections above to change the shape of the insert.
-*/
+// Computed Variables
+total_x_length = GRID_DIMENSIONS_MM.x * gridx;
+total_y_length = GRID_DIMENSIONS_MM.x * gridy;
+spacer_x_length = total_x_length - (LIP_OFFSET * 2);
+spacer_y_length = total_y_length - (LIP_OFFSET * 2);
+sub_div_x = divx - 1;
+sub_div_y = divy - 1;
+spacing_x = total_x_length / divx;
+spacing_y = total_y_length / divy;
+radius_fillet = RADIUS;
 
-// How many subdivisions are in each axis
-sub_div_x = cols - 1;
-sub_div_y = rows - 1;
+// Debugging is off if asterix is before.
+*debugging();
+// Run main module
+main();
 
-// Globals
-$fn=50;
-
-// Overall dimensions in x, y, z directions
-x = gridx * GRID_DIMENSIONS_MM.x;
-y = gridy * GRID_DIMENSIONS_MM.y;
-z = 6.9;
-
-// Tickness of all walls
-t1 = THICKNESS;
-t2 = t1 * 2;
-
-// Radius of all fillets
-r1 = RADIUS;
-r2 = r1 * 2;
-
-// Offset for lip internal
-l1 = LIP_OFFSET;
-l2 = l1 * 2;
-
-// Internal Dimensions(id) of 1x1 unit
-id = GRID_DIMENSIONS_MM.x - l2;
-
-// Spacer
-sp = (GRID_DIMENSIONS_MM.x * 2) - (id * 2) - l2;
-
-// Start building the spacer
-union(){
-    // Create the base structure
-    //translate([0, -20, 0])
-    /////base();
-    
-    // Subdivision spacing
-    spacing_y = (y - l2) / (sub_div_y + 1);
-    spacing_x = (x - l2) / (sub_div_x + 1);
-    
-    // Create Y dividers
-    for (i = [0:sub_div_y-1]) {
-        sp = (i + 1) * spacing_y;
-        echo(sp);
-        echo(41 % 38);
-        // Only put bottom on if in center
-        if( !(sp % 40 == 0)) {
-            translate([0, sp])
-            translate([0, -t1/2])
-            full_divider(gridx);
-        } else {
-            translate([0, sp])
-            translate([0, -t1/2])
-            cube([x - l2, t1, t1]);
-        }
+module main() {
+    union(){
+        color("red")
+        base();
+        color("green")
+        cross_members();
     }
-    
-    // Create X dividers
-    for (i = [0:sub_div_x-1]) {
-        sp = (i + 1) * spacing_x;
-        if( !(sp % 40 == 0)) {
-            translate([sp, 0])
-            translate([t1/2, 0])
-            rotate([0, 0, 90])
-            full_divider(gridy);
-        } else {
-            translate([sp, 0])
-            translate([t1/2, 0])
-            rotate([0, 0, 90])
-            cube([y - l2, t1, t1]);
-        }
-    }
+    *corner(1,1);
 }
 
-
-
+// Spacer base
 module base() {
-    linear_extrude(t1)
+    translate([LIP_OFFSET, LIP_OFFSET])
+    linear_extrude(THICKNESS)
     difference(){
+        
+        // Accounts for radius for minkowski
+        l_x = spacer_x_length - (RADIUS * 2); 
+        l_y = spacer_y_length - (RADIUS * 2); 
+        
         // Outline of base
-        translate([r1, r1])
+        translate([radius_fillet, radius_fillet])
         minkowski(){
-            square([x - t1 - l2, y - t1 - l2]);
-            circle(r1);
+            square([l_x, l_y]);
+            circle(radius_fillet);
         };
         
+        // Cut out for base contracting shape for thickness
+        l_x2 = spacer_x_length - (THICKNESS * 2); 
+        l_y2 = spacer_y_length - (THICKNESS * 2); 
+        
         // Base cutout
-        translate([t1, t1])
-        square([x - t2 - l2, y - t2 - l2]);
+        translate([2,2])
+        square([l_x2, l_y2]);
     }
 };
 
-module full_divider(length = 3) {
-    union(){
-        for( i = [0:length-1]) {
-            translate([i * (id + sp) , 0, 0])
-            divider();
+// Generates all the cross bars
+module cross_members() {
+    // Create X cross member(s)
+    for (i = [1:sub_div_x]) {
+        translate([i * spacing_x , 0, 0])
+        translate([-1 * (THICKNESS / 2), LIP_OFFSET])
+        if((i * spacing_x) % GRID_DIMENSIONS_MM.x == 0) {
+            spacer_bar(spacer_y_length, 90, false);
+        } else {
+            spacer_bar(spacer_y_length, 90, true);
         }
-        
-        // Create spacers
-        if(length > 1) {
-            for( i = [1:length - 1]) {
-                translate([(id * i) + (sp * (i - 1)), 0, 0])
-                spacer();
-            }
-        }
-        // Begining inverted corner
-        corners();
-        
-        // Ending inverted corner
-        translate([(id * length) + (sp * (length - 1)) - t1, 0, 0])
-        corners();
     }
+ 
+    // Create Y cross member(s)
+    for (i = [1:sub_div_y]) {
+        translate([0, i * spacing_y , 0])
+        translate([LIP_OFFSET, -i * (THICKNESS / 2)])
+        if((i * spacing_y) % GRID_DIMENSIONS_MM.y == 0) {
+            spacer_bar(spacer_x_length, 0, false);
+        } else {
+            spacer_bar(spacer_x_length, 0, true);
+        }
+    }
+};
+
+// Generates each bar based open length, rotation, height, and location
+module spacer_bar(length, rotation = 0, full = true) {
+    translate( rotation == 0 ? [ 0, 0, 0 ] : [ 2, 0, 0 ] )
+    rotate([0, 0, rotation]){
+        if (full) {
+            difference() {
+                union(){
+                    edge_bottom();
+                    translate([length - THICKNESS, 0, 0])
+                    edge_bottom();
+                    cube([length, THICKNESS, HEIGHT]);
+                }
+                
+                translate([0, -.1, 0])
+                scale([1,1.1,1])
+                translate([0, 0, 6.9])
+                rotate([90,0,90])
+                corner(1, 1);
+                
+                translate([0, -.1, 0])
+                scale([1,1.1,1])
+                translate([length, THICKNESS, 6.9])
+                rotate([90,0,270])
+                corner(1, 1);
+                
+                for (i = [GRID_DIMENSIONS_MM.x:GRID_DIMENSIONS_MM.x:length]){
+                    color("RED");
+                    scale([1, 1.2, 1.01])
+                    translate([i - LIP_OFFSET, THICKNESS/2 -.1, 2])
+                    negative_center();
+                };
+            };
+        } else {
+            cube([length, THICKNESS, THICKNESS]);
+        }
+
+    };
 }
 
-module spacer() {
-    union() {
-        // Spacer
-        color("blue")
-        linear_extrude(t1)
-        square([sp,t1]);
+// This is the shape used for removal from cross section where top fits
+module negative_center () {
+    translate([-3, THICKNESS / 2, 2])
+    rotate([90])
+    linear_extrude(THICKNESS)
+    union(){
+        square([6, 2.9]);
         
-        color("red")
-        translate([0, t1, t1])
-        rotate([90, 0, 0])
-        corner();
+        translate([2, 0, 0])
+        circle(2);
         
-        color("green")
-        translate([sp, 0, t1])
-        rotate([90, 0, 180])
-        corner();
-    }
+        translate([4, 0, 0])
+        circle(2);
+        
+        translate([2,-2, 0])
+        square([2,2]);
+        
+        // Top left inverted corner
+        difference(){
+            translate([-1, 1.9])
+            square([1, 1]);
+            translate([-1, 1.9])
+            circle(1);
+        };
+        // Top right inverted corner
+        difference(){
+            translate([6, 1.9])
+            square([1, 1]);
+            translate([7, 1.9])
+            circle(1);
+        };
+    };
 }
 
-module divider(pos = 0) {
-    //color("purple")
-    union(){
-        color("purple")
-        uprite();
-        
-        // Bottom Piece
-        cube([GRID_DIMENSIONS_MM.x - l2, t1, r1]);
-        
-        if(pos == 1 || pos == 3) {
-            color("orange")
-            corners();
-        }
-        
-        if(pos == 2 || pos == 3) {
-            translate([id - t1,0,0])
-            corners();
-        }        
-    }
-};
-
-// Creates the uprite for the divider
-module uprite() {
-    union() {
-        translate([0, t1])
-        rotate([90])
-        translate([r1, r1])
-        linear_extrude(t1)
-        minkowski(){
-            square([GRID_DIMENSIONS_MM.x - r2 - l2, z - r2]);
-            circle(r1);
-        }
-        
-        cube([GRID_DIMENSIONS_MM.x - l2, t1, r1]);
-    }
-};
-
-// Combines inverted corners for placement on edge
-module corners() {
-     // First corner
-    translate([t1,0,t1])
-    rotate([90,0,-90])
+// Creates a spaced double inverted corner for cross members
+module edge_bottom() {
+    translate([0,THICKNESS,THICKNESS])
+    rotate([-90,0,0])
     corner();
-
-    // Second corner
-    mirror([0,1,0])
-    translate([t1,-t1,t1])
-    rotate([90,0,-90])
-    corner();  
+    translate([0, 0, THICKNESS])
+    corner();
 };
 
 // Ceates a single inverted corner
-module corner() { 
+module corner(negative = 0, radius = 2) {
+    rotate([0,270,180])
     difference(){
-        cube([t1, t1, t1]);
-        translate([t1, t1, -.1])
-        cylinder(r=t1, h=t1+.2);
-    }
+        if (!negative) {
+            cube([radius, radius, THICKNESS]);
+        } else {
+            translate([-radius, -radius, 0])
+            cube([radius*2, radius*2, THICKNESS]);
+        }
+        translate([radius, radius, -.1])
+        cylinder(r=radius, h=THICKNESS+.2);
+    };
 };
+
+// Used for debugging
+module debugging() {
+    echo ("-------");
+    echo ("-------");
+    echo("Total X Length :", total_x_length);
+    echo("Total Y Length :", total_y_length);
+    echo("Spacer Y Length :", spacer_x_length);
+    echo("Spacer Y Length :", spacer_y_length);
+    echo("Subdivisions X :", sub_div_x);
+    echo("Subdivisions Y :", sub_div_y);
+    echo("Spacing X :", spacing_x);
+    echo("Spacing Y :", spacing_y);
+    echo("Radius :", radius_fillet);
+    echo ("-------");
+    echo ("-------");
+    
+    //Base
+    color("pink")
+    translate([0,0,-1])
+    square([total_x_length, total_y_length]);
+}
