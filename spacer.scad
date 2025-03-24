@@ -52,7 +52,6 @@ module main() {
         color("green")
         cross_members();
     }
-    *corner(1,1);
 }
 
 // Spacer base
