@@ -84,7 +84,7 @@ module base() {
 // Generates all the cross bars
 module cross_members() {
     // Create X cross member(s)
-    for (i = [1:sub_div_x]) {
+    for (i = [1:1:sub_div_x]) {
         translate([i * spacing_x , 0, 0])
         translate([-1 * (THICKNESS / 2), LIP_OFFSET])
         if((i * spacing_x) % GRID_DIMENSIONS_MM.x == 0) {
@@ -95,7 +95,7 @@ module cross_members() {
     }
  
     // Create Y cross member(s)
-    for (i = [1:sub_div_y]) {
+    for (i = [1:1:sub_div_y]) {
         translate([0, i * spacing_y , 0])
         translate([LIP_OFFSET, -i * (THICKNESS / 2)])
         if((i * spacing_y) % GRID_DIMENSIONS_MM.y == 0) {
